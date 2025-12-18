@@ -1,0 +1,59 @@
+###########################
+# Maven
+###########################
+target/
+pom.xml.tag
+pom.xml.releaseBackup
+pom.xml.versionsBackup
+pom.xml.next
+release.properties
+
+###########################
+# Quarkus
+###########################
+.quarkus/
+.quarkus-docker/
+.quarkus-dev/
+.quarkus-maven-plugin/
+
+###########################
+# AWS Lambda build artifacts
+###########################
+*.zip
+*.jar
+.function/
+build/
+aws-sam/
+.aws-sam/
+.sam-cache/
+
+###########################
+# IntelliJ / VSCode
+###########################
+../.idea/
+*.iml
+*.ipr
+*.iws
+.vscode/
+
+###########################
+# OS / Temp
+###########################
+.DS_Store
+Thumbs.db
+*.log
+*.tmp
+
+###########################
+# OneDrive conflicts (se estiver usando)
+###########################
+~$*
+*.tmp~
+*.sync-conflict-*
+
+# IntelliJ
+.idea/
+.idea/compiler.xml
+.idea/encodings.xml
+.idea/jarRepositories.xml
+.idea/misc.xml

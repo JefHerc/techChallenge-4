@@ -1,0 +1,45 @@
+name: CI/CD - Build & Deploy (AWS SAM Container)
+
+on:
+  push:
+    branches: [ main ]
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }} # Usa o segredo com o ARN
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      # Login no ECR é OBRIGATÓRIO para PackageType: Image
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Setup AWS SAM
+        uses: aws-actions/setup-sam@v2
+        with:
+          use-installer: true
+
+      # SAM Build vai ler o template.yaml na raiz.
+      # Ele verá Metadata -> DockerContext: ./feedback-notification-processor
+      # E vai rodar o seu Dockerfile automaticamente.
+      - name: SAM Build
+        run: sam build
+
+      # SAM Deploy cria os repositórios ECR automaticamente (--resolve-image-repos)
+      - name: SAM Deploy
+        run: |
+          sam deploy --no-confirm-changeset \
+          --no-fail-on-empty-changeset \
+          --stack-name tech-challenge-fase4 \
+          --capabilities CAPABILITY_IAM \
+          --resolve-s3 \
+          --resolve-image-repos

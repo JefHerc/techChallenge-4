@@ -1,0 +1,100 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: >
+  Tech Challenge 4 - Processador de Eventos e Notificação (Assíncrono)
+
+Globals:
+  Function:
+    Timeout: 30
+    MemorySize: 256
+    # Runtime removido daqui pois será definido pela Imagem Docker
+    Architectures:
+      - x86_64
+
+Parameters:
+  DynamoDbTableName:
+    Type: String
+    Default: Feedbacks
+  AdminEmail:
+    Type: String
+    Default: gustavo.jog+admin@hotmail.com
+  SourceEmail:
+    Type: String
+    Default: gustavo.jog+no-reply@hotmail.com
+
+Resources:
+  FeedbackFailedQueue:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: FeedbackFailedQueue
+  FeedbackSubmittedQueue:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: FeedbackSubmittedQueue
+      RedrivePolicy:
+        deadLetterTargetArn: !GetAtt FeedbackFailedQueue.Arn
+        maxReceiveCount: 3
+
+  NotificationProcessorFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: NotificationProcessorFunction
+      Description: Consome mensagens da SQS com IDs de feedback via Container Image.
+
+      # MUDANÇA PRINCIPAL: Mudamos de Zip para Image
+      PackageType: Image
+
+      # Nota: Removemos CodeUri, Runtime e Handler.
+      # O SAM agora olha para a seção Metadata para saber o que construir.
+
+      Events:
+        SQSTrigger:
+          Type: SQS
+          Properties:
+            Queue: !GetAtt FeedbackSubmittedQueue.Arn
+            BatchSize: 1
+      Environment:
+        Variables:
+          QUARKUS_LOG_LEVEL: INFO
+          EMAIL_ADMIN_ADDRESS: !Ref AdminEmail
+          EMAIL_SOURCE_ADDRESS: !Ref SourceEmail
+          FEEDBACK_DYNAMODB_TABLE_NAME: !Ref DynamoDbTableName
+      Policies:
+        - Statement:
+            - Effect: Allow
+              Action:
+                - sqs:ReceiveMessage
+                - sqs:DeleteMessage
+                - sqs:GetQueueAttributes
+              Resource: !GetAtt FeedbackSubmittedQueue.Arn
+            - Effect: Allow
+              Action:
+                - dynamodb:GetItem
+              Resource: !Sub arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${DynamoDbTableName}
+            - Effect: Allow
+              Action:
+                - ses:SendEmail
+              Resource: '*'
+            - Effect: Allow
+              Action:
+                - logs:CreateLogGroup
+                - logs:CreateLogStream
+                - logs:PutLogEvents
+              Resource: '*'
+
+    # METADADOS PARA O BUILD COM DOCKER
+    Metadata:
+      Dockerfile: Dockerfile
+      DockerContext: ./feedback-notification-processor
+      DockerTag: v1
+
+Outputs:
+  FeedbackSubmittedQueueUrl:
+    Description: URL da fila principal
+    Value: !Ref FeedbackSubmittedQueue
+  FeedbackFailedQueueUrl:
+    Description: URL da DLQ
+    Value: !Ref FeedbackFailedQueue
+  NotificationProcessorFunctionArn:
+    Description: ARN da função Lambda
+    Value: !GetAtt NotificationProcessorFunction.Arn
