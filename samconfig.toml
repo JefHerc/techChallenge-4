@@ -4,7 +4,6 @@ version = 0.1
 stack_name = "TechChallenge4-Processor"
 resolve_s3 = true
 s3_prefix = "TechChallenge4-Processor"
-profile = "default"
 capabilities = "CAPABILITY_IAM"
 parameter_overrides = "DynamoDbTableName=\"Feedbacks\" AdminEmail=\"gustavo.jog+admin@hotmail.com\" SourceEmail=\"gustavo.jog+no-reply@hotmail.com\""
 image_repositories = ["NotificationProcessorFunction=791860731314.dkr.ecr.sa-east-1.amazonaws.com/techchallenge4processorf5b6f8d7/notificationprocessorfunction18b2472brepo"]
