@@ -16,10 +16,10 @@ Parameters:
     Default: Feedbacks
   AdminEmail:
     Type: String
-    Default: gustavo.jog+admin@hotmail.com
+    Default: jeferson.herculano@outlook.com
   SourceEmail:
     Type: String
-    Default: gustavo.jog+no-reply@hotmail.com
+    Default: jh93.dev@gmail.com
   
   # NOMES EXATOS DAS SUAS FILAS NA AWS
   QueueNameMain:

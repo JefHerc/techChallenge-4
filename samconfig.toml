@@ -5,7 +5,7 @@ stack_name = "TechChallenge4-Processor"
 resolve_s3 = true
 s3_prefix = "TechChallenge4-Processor"
 capabilities = "CAPABILITY_IAM"
-parameter_overrides = "DynamoDbTableName=\"Feedbacks\" AdminEmail=\"gustavo.jog+admin@hotmail.com\" SourceEmail=\"gustavo.jog+no-reply@hotmail.com\""
+parameter_overrides = "DynamoDbTableName=\"Feedbacks\" AdminEmail=\"gustavo.jog+admin@hotmail.com\" SourceEmail=\"jh93.dev@gmail.com\""
 
 [default.global.parameters]
 region = "sa-east-1"
