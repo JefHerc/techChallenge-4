@@ -1,0 +1,92 @@
+{
+	"info": {
+		"_postman_id": "bf72fc02-f491-4a2d-b082-a2411f900c53",
+		"name": "Tech-Challenge-4",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"_exporter_id": "14329877"
+	},
+	"item": [
+		{
+			"name": "Cadastrar feedback - Nota alta",
+			"request": {
+				"auth": {
+					"type": "bearer",
+					"bearer": [
+						{
+							"key": "token",
+							"value": "eyJraWQiOiJLaFM0ajBQNjN1STcxdldLRmZQSE9nTzJOSWtLcWdRdXVyYkg4M0hEcUxNPSIsImFsZyI6IlJTMjU2In0.eyJzdWIiOiJlMzZjNmE5YS05MDYxLTcwYTMtOWVhOC1jNDg4ZjYxNjNlZWUiLCJpc3MiOiJodHRwczpcL1wvY29nbml0by1pZHAuc2EtZWFzdC0xLmFtYXpvbmF3cy5jb21cL3NhLWVhc3QtMV9XVkRQT3RhM08iLCJjb2duaXRvOnVzZXJuYW1lIjoiZTM2YzZhOWEtOTA2MS03MGEzLTllYTgtYzQ4OGY2MTYzZWVlIiwib3JpZ2luX2p0aSI6IjQ4NWU4NjdlLTExMWYtNDQ3YS04NzdjLTliOWEwNzY5MjZlOCIsImF1ZCI6IjU0OGo2Y21mMTV2ZWtxZmVkY2Q3bjJjc243IiwiZXZlbnRfaWQiOiI5OTkwNjNhOS04NDM5LTQ4OWMtOGUyZC03ZDBmZjIwN2E3ZGUiLCJ0b2tlbl91c2UiOiJpZCIsImF1dGhfdGltZSI6MTc2NTkzNDUzNCwiZXhwIjoxNzY1OTM4MTM0LCJpYXQiOjE3NjU5MzQ1MzQsImp0aSI6IjYzZmY4NzM4LTcxNzQtNGI4NC04ZDQ2LTQxMzc2NmRjMzNhYyIsImVtYWlsIjoiYWx1bm8udGVzdGVAZW1haWwuY29tIn0.oViGJCD0VNfine-OMuo9haOLS_g4vd1-QOcjFeXsV7TT7erUMEqvGIQpYMLXNJX1ZPiBWdNpl4EgoM-7PF02RTnUOEpY2qIdxokuME5ooACpoLOdkqhLJkWd8Lu9SULpmIa8AkdpvfnH3LF0W_Yio0ComonvIjGrncPUxxtM5IfDJDgc3yHABmYq8o9n9xICWC7tYaNPmb_0LpHyTtsnshYUeHZGBCU63bJz66EuC5FbVivbcjA-MVfqqIB8Ou6brQjPl9WDHkKreCU6L6On_pnOZB5oSI4oFHPqB3BWPv9E9ID66Qcq7kZXp9ZPJ7W0BKYMCyKEaQhcgEIvc1ka6",
+							"type": "string"
+						}
+					]
+				},
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n  \"nota\": 10,\r\n  \"descricao\": \"Gostei muito da explicação sobre Quarkus, excelente uso de analogias!\"\r\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "https://fub3lo8syj.execute-api.sa-east-1.amazonaws.com/avaliacao",
+					"protocol": "https",
+					"host": [
+						"fub3lo8syj",
+						"execute-api",
+						"sa-east-1",
+						"amazonaws",
+						"com"
+					],
+					"path": [
+						"avaliacao"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Cadastrar feedback - Nota baixa",
+			"request": {
+				"auth": {
+					"type": "bearer",
+					"bearer": [
+						{
+							"key": "token",
+							"value": "eyJraWQiOiJLaFM0ajBQNjN1STcxdldLRmZQSE9nTzJOSWtLcWdRdXVyYkg4M0hEcUxNPSIsImFsZyI6IlJTMjU2In0.eyJzdWIiOiJlMzZjNmE5YS05MDYxLTcwYTMtOWVhOC1jNDg4ZjYxNjNlZWUiLCJpc3MiOiJodHRwczpcL1wvY29nbml0by1pZHAuc2EtZWFzdC0xLmFtYXpvbmF3cy5jb21cL3NhLWVhc3QtMV9XVkRQT3RhM08iLCJjb2duaXRvOnVzZXJuYW1lIjoiZTM2YzZhOWEtOTA2MS03MGEzLTllYTgtYzQ4OGY2MTYzZWVlIiwib3JpZ2luX2p0aSI6IjQ4NWU4NjdlLTExMWYtNDQ3YS04NzdjLTliOWEwNzY5MjZlOCIsImF1ZCI6IjU0OGo2Y21mMTV2ZWtxZmVkY2Q3bjJjc243IiwiZXZlbnRfaWQiOiI5OTkwNjNhOS04NDM5LTQ4OWMtOGUyZC03ZDBmZjIwN2E3ZGUiLCJ0b2tlbl91c2UiOiJpZCIsImF1dGhfdGltZSI6MTc2NTkzNDUzNCwiZXhwIjoxNzY1OTM4MTM0LCJpYXQiOjE3NjU5MzQ1MzQsImp0aSI6IjYzZmY4NzM4LTcxNzQtNGI4NC04ZDQ2LTQxMzc2NmRjMzNhYyIsImVtYWlsIjoiYWx1bm8udGVzdGVAZW1haWwuY29tIn0.oViGJCD0VNfine-OMuo9haOLS_g4vd1-QOcjFeXsV7TT7erUMEqvGIQpYMLXNJX1ZPiBWdNpl4EgoM-7PF02RTnUOEpY2qIdxokuME5ooACpoLOdkqhLJkWd8Lu9SULpmIa8AkdpvfnH3LF0W_Yio0ComonvIjGrncPUxxtM5IfDJDgc3yHABmYq8o9n9xICWC7tYaNPmb_0LpHyTtsnshYUeHZGBCU63bJz66EuC5FbVivbcjA-MVfqqIB8Ou6brQjPl9WDHkKreCU6L6On_pnOZB5oSI4oFHPqB3BWPv9E9ID66Qcq7kZXp9ZPJ7W0BKYMCyKEaQhcgEIvc1ka6Q",
+							"type": "string"
+						}
+					]
+				},
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n  \"nota\": 1,\r\n  \"descricao\": \"Não consegui aproveitar nada da aula de autenticação, vou ter que estudar por fora :(\"\r\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "https://fub3lo8syj.execute-api.sa-east-1.amazonaws.com/avaliacao",
+					"protocol": "https",
+					"host": [
+						"fub3lo8syj",
+						"execute-api",
+						"sa-east-1",
+						"amazonaws",
+						"com"
+					],
+					"path": [
+						"avaliacao"
+					]
+				}
+			},
+			"response": []
+		}
+	]
+}

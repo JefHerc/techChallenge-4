@@ -93,6 +93,103 @@ Resources:
       DockerContext: ./feedback-notification-processor
       DockerTag: v1
 
+  # API Gateway HTTP API para a ingestão
+  FeedbackApi:
+    Type: AWS::Serverless::HttpApi
+    Properties:
+      CorsConfiguration:
+        AllowOrigins:
+          - "*"
+        AllowMethods:
+          - GET
+          - POST
+          - OPTIONS
+        AllowHeaders:
+          - "Content-Type"
+          - "Authorization"
+      Auth:
+        DefaultAuthorizer: CognitoJwtAuthorizer
+        Authorizers:
+          CognitoJwtAuthorizer:
+            IdentitySource: "$request.header.Authorization"
+            JwtConfiguration:
+              issuer: !Sub "https://cognito-idp.${AWS::Region}.amazonaws.com/${FeedbackUserPool}"
+              audience:
+                - !Ref FeedbackUserPoolClient
+      # Configuração de Proteção (Throttling)
+      DefaultRouteSettings:
+        ThrottlingBurstLimit: 20  # Máximo de requisições simultâneas (pico)
+        ThrottlingRateLimit: 10    # Máximo de requisições por segundo (média)
+
+  # Função Lambda de Ingestão (HTTP -> Lambda via API Gateway)
+  FeedbackIngestionFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: FeedbackIngestionFunction
+      Description: API de ingestão de feedbacks (HTTP) que persiste no DynamoDB e envia evento para SQS.
+      PackageType: Image
+      Events:
+        ApiPost:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref FeedbackApi
+            Path: /avaliacao
+            Method: POST
+      Environment:
+        Variables:
+          QUARKUS_LOG_LEVEL: INFO
+          FEEDBACK_DYNAMODB_TABLE_NAME: !Ref DynamoDbTableName
+          FEEDBACK_SUBMITTED_QUEUE_URL: !Ref FeedbackSubmittedQueue
+      Policies:
+        - Statement:
+            - Effect: Allow
+              Action:
+                - dynamodb:PutItem
+              Resource: !Sub arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${DynamoDbTableName}
+            - Effect: Allow
+              Action:
+                - sqs:SendMessage
+              Resource: !GetAtt FeedbackSubmittedQueue.Arn
+            - Effect: Allow
+              Action:
+                - logs:CreateLogGroup
+                - logs:CreateLogStream
+                - logs:PutLogEvents
+              Resource: '*'
+    Metadata:
+      Dockerfile: Dockerfile
+      DockerContext: ./feedback-ingestion-api
+      DockerTag: v1
+
+  FeedbackUserPool:
+    Type: AWS::Cognito::UserPool
+    Properties:
+      UserPoolName: FeedbackUsers
+      AutoVerifiedAttributes: [ email ]
+      UsernameAttributes: [ email ]
+
+  FeedbackUserPoolClient:
+    Type: AWS::Cognito::UserPoolClient
+    Properties:
+      ClientName: FeedbackAppClient
+      UserPoolId: !Ref FeedbackUserPool
+      GenerateSecret: false
+      ExplicitAuthFlows:
+        - ALLOW_USER_PASSWORD_AUTH
+        - ALLOW_REFRESH_TOKEN_AUTH
+        - ALLOW_ADMIN_USER_PASSWORD_AUTH
+
 Outputs:
   NotificationProcessorFunctionArn:
+    Description: ARN da função Lambda
+    Value: !GetAtt NotificationProcessorFunction.Arn
+  FeedbackApiEndpoint:
+    Description: Endpoint base da API de Ingestão (HttpApi)
+    Value: !Sub "https://${FeedbackApi}.execute-api.${AWS::Region}.amazonaws.com"
+  CognitoUserPoolId:
+    Description: ID do User Pool do Cognito
+    Value: !Ref FeedbackUserPool
+  CognitoClientId:
+    Description: ID do App Client do Cognito
+    Value: !Ref FeedbackUserPoolClient
     Value: !GetAtt NotificationProcessorFunction.Arn
