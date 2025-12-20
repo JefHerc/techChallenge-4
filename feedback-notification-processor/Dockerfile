@@ -8,18 +8,17 @@ COPY --chown=quarkus:quarkus pom.xml /code/
 USER quarkus
 WORKDIR /code
 
-# CORREÇÃO AQUI: Criamos a pasta antes de criar o arquivo
+# Dá permissão de execução ao wrapper (importante para Linux/Docker)
 RUN chmod +x mvnw && \
     mkdir -p src/main/resources && \
     touch src/main/resources/application.properties
 
-# Baixa as dependências (Cache Layer)
+# Baixa as dependências usando o wrapper
 RUN ./mvnw -B org.apache.maven.plugins:maven-dependency-plugin:3.1.2:go-offline
 
-# Copia o código fonte real (Isso vai sobrescrever o dummy criado acima, o que é ótimo)
 COPY src /code/src
 
-# Compila
+# Compila usando o wrapper
 RUN ./mvnw package -Pnative -Dquarkus.native.native-image-xmx=4g
 
 ## Estágio 2: Criação da Imagem Lambda (Runtime)

@@ -7,7 +7,6 @@ Globals:
   Function:
     Timeout: 30
     MemorySize: 256
-    # Runtime removido daqui pois será definido pela Imagem Docker
     Architectures:
       - x86_64
 
@@ -21,59 +20,66 @@ Parameters:
   SourceEmail:
     Type: String
     Default: gustavo.jog+no-reply@hotmail.com
+  
+  # NOMES EXATOS DAS SUAS FILAS NA AWS
+  QueueNameMain:
+    Type: String
+    Default: FeedbackSubmittedQueue
+  QueueNameDLQ:
+    Type: String
+    Default: FeedbackFailedQueue
 
 Resources:
-  FeedbackFailedQueue:
-    Type: AWS::SQS::Queue
-    Properties:
-      QueueName: FeedbackFailedQueue
-  FeedbackSubmittedQueue:
-    Type: AWS::SQS::Queue
-    Properties:
-      QueueName: FeedbackSubmittedQueue
-      RedrivePolicy:
-        deadLetterTargetArn: !GetAtt FeedbackFailedQueue.Arn
-        maxReceiveCount: 3
 
   NotificationProcessorFunction:
     Type: AWS::Serverless::Function
     Properties:
       FunctionName: NotificationProcessorFunction
-      Description: Consome mensagens da SQS com IDs de feedback via Container Image.
-
-      # MUDANÇA PRINCIPAL: Mudamos de Zip para Image
+      Description: Processa mensagens da fila existente.
       PackageType: Image
-
-      # Nota: Removemos CodeUri, Runtime e Handler.
-      # O SAM agora olha para a seção Metadata para saber o que construir.
 
       Events:
         SQSTrigger:
           Type: SQS
           Properties:
-            Queue: !GetAtt FeedbackSubmittedQueue.Arn
+            # Conecta na fila MAIN existente
+            Queue: !Sub "arn:aws:sqs:${AWS::Region}:${AWS::AccountId}:${QueueNameMain}"
             BatchSize: 1
+      
       Environment:
         Variables:
           QUARKUS_LOG_LEVEL: INFO
           EMAIL_ADMIN_ADDRESS: !Ref AdminEmail
           EMAIL_SOURCE_ADDRESS: !Ref SourceEmail
           FEEDBACK_DYNAMODB_TABLE_NAME: !Ref DynamoDbTableName
+      
       Policies:
         - Statement:
+            # 1. Permissão Total na Fila Principal
             - Effect: Allow
               Action:
                 - sqs:ReceiveMessage
                 - sqs:DeleteMessage
                 - sqs:GetQueueAttributes
-              Resource: !GetAtt FeedbackSubmittedQueue.Arn
+              Resource: !Sub "arn:aws:sqs:${AWS::Region}:${AWS::AccountId}:${QueueNameMain}"
+            
+            # 2. Permissão na DLQ (Boa prática para reprocessamento ou log)
+            - Effect: Allow
+              Action:
+                - sqs:GetQueueAttributes
+                - sqs:SendMessage
+              Resource: !Sub "arn:aws:sqs:${AWS::Region}:${AWS::AccountId}:${QueueNameDLQ}"
+
+            # 3. DynamoDB
             - Effect: Allow
               Action:
                 - dynamodb:GetItem
-              Resource: !Sub arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${DynamoDbTableName}
+                - dynamodb:PutItem # Caso precise salvar algo
+              Resource: !Sub "arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${DynamoDbTableName}"
+            
+            # 4. SES e Logs
             - Effect: Allow
-              Action:
-                - ses:SendEmail
+              Action: ses:SendEmail
               Resource: '*'
             - Effect: Allow
               Action:
@@ -82,19 +88,11 @@ Resources:
                 - logs:PutLogEvents
               Resource: '*'
 
-    # METADADOS PARA O BUILD COM DOCKER
     Metadata:
       Dockerfile: Dockerfile
       DockerContext: ./feedback-notification-processor
       DockerTag: v1
 
 Outputs:
-  FeedbackSubmittedQueueUrl:
-    Description: URL da fila principal
-    Value: !Ref FeedbackSubmittedQueue
-  FeedbackFailedQueueUrl:
-    Description: URL da DLQ
-    Value: !Ref FeedbackFailedQueue
   NotificationProcessorFunctionArn:
-    Description: ARN da função Lambda
     Value: !GetAtt NotificationProcessorFunction.Arn
