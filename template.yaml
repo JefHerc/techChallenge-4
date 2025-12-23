@@ -1,7 +1,7 @@
 AWSTemplateFormatVersion: '2010-09-09'
 Transform: AWS::Serverless-2016-10-31
 Description: >
-  Tech Challenge 4 - Processador e Ingestão (Conecta em recursos existentes)
+  Tech Challenge 4 - Processador de Eventos e Notificação (Assíncrono)
 
 Globals:
   Function:
@@ -16,12 +16,12 @@ Parameters:
     Default: Feedbacks
   AdminEmail:
     Type: String
-    Default: jeferson.herculano@outlook.com
+    Default: gustavo.jog+admin@hotmail.com
   SourceEmail:
     Type: String
-    Default: jh93.dev@gmail.com
+    Default: gustavo.jog+no-reply@hotmail.com
   
-  # NOMES DAS FILAS EXISTENTES NA AWS
+  # NOMES EXATOS DAS SUAS FILAS EXISTENTES NA AWS (Criadas manualmente)
   QueueNameMain:
     Type: String
     Default: FeedbackSubmittedQueue
@@ -31,19 +31,21 @@ Parameters:
 
 Resources:
 
-  # --- PROCESSADOR DE NOTIFICAÇÕES (Consumer) ---
+  # ---------------------------------------------------------
+  # CONSUMER LAMBDA (Processa mensagens da Fila)
+  # ---------------------------------------------------------
   NotificationProcessorFunction:
     Type: AWS::Serverless::Function
     Properties:
-      FunctionName: NotificationProcessorFunction
-      Description: Processa mensagens da fila existente.
+      # REMOVIDO FunctionName FIXO PARA EVITAR CONFLITO DE DEPLOY
+      Description: Processa mensagens da fila existente e envia notificações.
       PackageType: Image
 
       Events:
         SQSTrigger:
           Type: SQS
           Properties:
-            # Conecta na fila MAIN existente
+            # Conecta na fila MAIN existente via ARN montado dinamicamente
             Queue: !Sub "arn:aws:sqs:${AWS::Region}:${AWS::AccountId}:${QueueNameMain}"
             BatchSize: 1
       
@@ -56,22 +58,29 @@ Resources:
       
       Policies:
         - Statement:
+            # 1. Permissão na Fila Principal
             - Effect: Allow
               Action:
                 - sqs:ReceiveMessage
                 - sqs:DeleteMessage
                 - sqs:GetQueueAttributes
               Resource: !Sub "arn:aws:sqs:${AWS::Region}:${AWS::AccountId}:${QueueNameMain}"
+            
+            # 2. Permissão na DLQ
             - Effect: Allow
               Action:
                 - sqs:GetQueueAttributes
                 - sqs:SendMessage
               Resource: !Sub "arn:aws:sqs:${AWS::Region}:${AWS::AccountId}:${QueueNameDLQ}"
+
+            # 3. DynamoDB
             - Effect: Allow
               Action:
                 - dynamodb:GetItem
                 - dynamodb:PutItem
               Resource: !Sub "arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${DynamoDbTableName}"
+            
+            # 4. SES e Logs
             - Effect: Allow
               Action: ses:SendEmail
               Resource: '*'
@@ -81,12 +90,15 @@ Resources:
                 - logs:CreateLogStream
                 - logs:PutLogEvents
               Resource: '*'
+
     Metadata:
       Dockerfile: Dockerfile
       DockerContext: ./feedback-notification-processor
       DockerTag: v1
 
-  # --- API GATEWAY & COGNITO ---
+  # ---------------------------------------------------------
+  # API GATEWAY (HTTP API)
+  # ---------------------------------------------------------
   FeedbackApi:
     Type: AWS::Serverless::HttpApi
     Properties:
@@ -113,12 +125,14 @@ Resources:
         ThrottlingBurstLimit: 20
         ThrottlingRateLimit: 10
 
-  # --- FUNÇÃO DE INGESTÃO (Producer) ---
+  # ---------------------------------------------------------
+  # PRODUCER LAMBDA (Recebe HTTP e manda para Fila)
+  # ---------------------------------------------------------
   FeedbackIngestionFunction:
     Type: AWS::Serverless::Function
     Properties:
-      FunctionName: FeedbackIngestionFunction
-      Description: API de ingestão de feedbacks.
+      # REMOVIDO FunctionName FIXO PARA EVITAR CONFLITO DE DEPLOY
+      Description: API de ingestão de feedbacks (HTTP) -> DynamoDB + SQS.
       PackageType: Image
       Events:
         ApiPost:
@@ -131,7 +145,7 @@ Resources:
         Variables:
           QUARKUS_LOG_LEVEL: INFO
           FEEDBACK_DYNAMODB_TABLE_NAME: !Ref DynamoDbTableName
-          # CORREÇÃO CRÍTICA: Usar !Sub para montar a URL da fila existente
+          # Monta a URL da fila (Necessária para o Producer)
           FEEDBACK_SUBMITTED_QUEUE_URL: !Sub "https://sqs.${AWS::Region}.amazonaws.com/${AWS::AccountId}/${QueueNameMain}"
       Policies:
         - Statement:
@@ -142,7 +156,7 @@ Resources:
             - Effect: Allow
               Action:
                 - sqs:SendMessage
-              # CORREÇÃO CRÍTICA: Usar !Sub para o ARN da fila existente
+              # Monta o ARN da fila (Necessário para a Permissão)
               Resource: !Sub "arn:aws:sqs:${AWS::Region}:${AWS::AccountId}:${QueueNameMain}"
             - Effect: Allow
               Action:
@@ -155,7 +169,9 @@ Resources:
       DockerContext: ./feedback-ingestion-api
       DockerTag: v1
 
-  # --- COGNITO RESOURCES ---
+  # ---------------------------------------------------------
+  # COGNITO (Autenticação)
+  # ---------------------------------------------------------
   FeedbackUserPool:
     Type: AWS::Cognito::UserPool
     Properties:
@@ -176,10 +192,13 @@ Resources:
 
 Outputs:
   NotificationProcessorFunctionArn:
-    Description: ARN da função Lambda Processor
+    Description: ARN da função Lambda Consumer
     Value: !GetAtt NotificationProcessorFunction.Arn
+  FeedbackIngestionFunctionArn:
+    Description: ARN da função Lambda Producer
+    Value: !GetAtt FeedbackIngestionFunction.Arn
   FeedbackApiEndpoint:
-    Description: Endpoint base da API de Ingestão
+    Description: Endpoint base da API de Ingestão (HttpApi)
     Value: !Sub "https://${FeedbackApi}.execute-api.${AWS::Region}.amazonaws.com"
   CognitoUserPoolId:
     Description: ID do User Pool do Cognito
@@ -187,4 +206,3 @@ Outputs:
   CognitoClientId:
     Description: ID do App Client do Cognito
     Value: !Ref FeedbackUserPoolClient
-    # Removida linha duplicada "Value: ..." que causaria erro de sintaxe
