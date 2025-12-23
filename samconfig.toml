@@ -5,8 +5,9 @@ stack_name = "TechChallenge4-Processor"
 resolve_s3 = true
 s3_prefix = "TechChallenge4-Processor"
 capabilities = "CAPABILITY_IAM"
+# Removida a linha 'image_repositories' para evitar conflito com --resolve-image-repos do CI/CD
 parameter_overrides = "DynamoDbTableName=\"Feedbacks\" AdminEmail=\"jeferson.herculano@outlook.com\" SourceEmail=\"jh93.dev@gmail.com\""
-image_repositories = ["NotificationProcessorFunction=791860731314.dkr.ecr.sa-east-1.amazonaws.com/techchallenge4processorf5b6f8d7/notificationprocessorfunction18b2472brepo", "FeedbackIngestionFunction=791860731314.dkr.ecr.sa-east-1.amazonaws.com/techchallenge4processorf5b6f8d7/feedbackingestionfunction7b497a8arepo"]
 
 [default.global.parameters]
+# Garanta que esta região é a mesma configurada no seu GitHub Secrets (AWS_REGION)
 region = "sa-east-1"

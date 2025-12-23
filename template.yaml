@@ -1,7 +1,7 @@
 AWSTemplateFormatVersion: '2010-09-09'
 Transform: AWS::Serverless-2016-10-31
 Description: >
-  Tech Challenge 4 - Processador de Eventos e Notificação (Assíncrono)
+  Tech Challenge 4 - Processador e Ingestão (Conecta em recursos existentes)
 
 Globals:
   Function:
@@ -21,7 +21,7 @@ Parameters:
     Type: String
     Default: jh93.dev@gmail.com
   
-  # NOMES EXATOS DAS SUAS FILAS NA AWS
+  # NOMES DAS FILAS EXISTENTES NA AWS
   QueueNameMain:
     Type: String
     Default: FeedbackSubmittedQueue
@@ -31,6 +31,7 @@ Parameters:
 
 Resources:
 
+  # --- PROCESSADOR DE NOTIFICAÇÕES (Consumer) ---
   NotificationProcessorFunction:
     Type: AWS::Serverless::Function
     Properties:
@@ -55,29 +56,22 @@ Resources:
       
       Policies:
         - Statement:
-            # 1. Permissão Total na Fila Principal
             - Effect: Allow
               Action:
                 - sqs:ReceiveMessage
                 - sqs:DeleteMessage
                 - sqs:GetQueueAttributes
               Resource: !Sub "arn:aws:sqs:${AWS::Region}:${AWS::AccountId}:${QueueNameMain}"
-            
-            # 2. Permissão na DLQ (Boa prática para reprocessamento ou log)
             - Effect: Allow
               Action:
                 - sqs:GetQueueAttributes
                 - sqs:SendMessage
               Resource: !Sub "arn:aws:sqs:${AWS::Region}:${AWS::AccountId}:${QueueNameDLQ}"
-
-            # 3. DynamoDB
             - Effect: Allow
               Action:
                 - dynamodb:GetItem
-                - dynamodb:PutItem # Caso precise salvar algo
+                - dynamodb:PutItem
               Resource: !Sub "arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${DynamoDbTableName}"
-            
-            # 4. SES e Logs
             - Effect: Allow
               Action: ses:SendEmail
               Resource: '*'
@@ -87,13 +81,12 @@ Resources:
                 - logs:CreateLogStream
                 - logs:PutLogEvents
               Resource: '*'
-
     Metadata:
       Dockerfile: Dockerfile
       DockerContext: ./feedback-notification-processor
       DockerTag: v1
 
-  # API Gateway HTTP API para a ingestão
+  # --- API GATEWAY & COGNITO ---
   FeedbackApi:
     Type: AWS::Serverless::HttpApi
     Properties:
@@ -116,17 +109,16 @@ Resources:
               issuer: !Sub "https://cognito-idp.${AWS::Region}.amazonaws.com/${FeedbackUserPool}"
               audience:
                 - !Ref FeedbackUserPoolClient
-      # Configuração de Proteção (Throttling)
       DefaultRouteSettings:
-        ThrottlingBurstLimit: 20  # Máximo de requisições simultâneas (pico)
-        ThrottlingRateLimit: 10    # Máximo de requisições por segundo (média)
+        ThrottlingBurstLimit: 20
+        ThrottlingRateLimit: 10
 
-  # Função Lambda de Ingestão (HTTP -> Lambda via API Gateway)
+  # --- FUNÇÃO DE INGESTÃO (Producer) ---
   FeedbackIngestionFunction:
     Type: AWS::Serverless::Function
     Properties:
       FunctionName: FeedbackIngestionFunction
-      Description: API de ingestão de feedbacks (HTTP) que persiste no DynamoDB e envia evento para SQS.
+      Description: API de ingestão de feedbacks.
       PackageType: Image
       Events:
         ApiPost:
@@ -139,17 +131,19 @@ Resources:
         Variables:
           QUARKUS_LOG_LEVEL: INFO
           FEEDBACK_DYNAMODB_TABLE_NAME: !Ref DynamoDbTableName
-          FEEDBACK_SUBMITTED_QUEUE_URL: !Ref FeedbackSubmittedQueue
+          # CORREÇÃO CRÍTICA: Usar !Sub para montar a URL da fila existente
+          FEEDBACK_SUBMITTED_QUEUE_URL: !Sub "https://sqs.${AWS::Region}.amazonaws.com/${AWS::AccountId}/${QueueNameMain}"
       Policies:
         - Statement:
             - Effect: Allow
               Action:
                 - dynamodb:PutItem
-              Resource: !Sub arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${DynamoDbTableName}
+              Resource: !Sub "arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${DynamoDbTableName}"
             - Effect: Allow
               Action:
                 - sqs:SendMessage
-              Resource: !GetAtt FeedbackSubmittedQueue.Arn
+              # CORREÇÃO CRÍTICA: Usar !Sub para o ARN da fila existente
+              Resource: !Sub "arn:aws:sqs:${AWS::Region}:${AWS::AccountId}:${QueueNameMain}"
             - Effect: Allow
               Action:
                 - logs:CreateLogGroup
@@ -161,6 +155,7 @@ Resources:
       DockerContext: ./feedback-ingestion-api
       DockerTag: v1
 
+  # --- COGNITO RESOURCES ---
   FeedbackUserPool:
     Type: AWS::Cognito::UserPool
     Properties:
@@ -181,10 +176,10 @@ Resources:
 
 Outputs:
   NotificationProcessorFunctionArn:
-    Description: ARN da função Lambda
+    Description: ARN da função Lambda Processor
     Value: !GetAtt NotificationProcessorFunction.Arn
   FeedbackApiEndpoint:
-    Description: Endpoint base da API de Ingestão (HttpApi)
+    Description: Endpoint base da API de Ingestão
     Value: !Sub "https://${FeedbackApi}.execute-api.${AWS::Region}.amazonaws.com"
   CognitoUserPoolId:
     Description: ID do User Pool do Cognito
@@ -192,4 +187,4 @@ Outputs:
   CognitoClientId:
     Description: ID do App Client do Cognito
     Value: !Ref FeedbackUserPoolClient
-    Value: !GetAtt NotificationProcessorFunction.Arn
+    # Removida linha duplicada "Value: ..." que causaria erro de sintaxe
