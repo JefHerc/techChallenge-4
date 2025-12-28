@@ -29,6 +29,17 @@ Parameters:
     Type: String
     Default: FeedbackFailedQueue
 
+  # Recursos existentes para o gerador de relatórios
+  ReportsBucketName:
+    Type: String
+    Default: relatorios-avaliacao-bucket1
+  PdfUrlDays:
+    Type: Number
+    Default: 20
+  ReportSchedule:
+    Type: String
+    Default: rate(1 day)
+
 Resources:
 
   # ---------------------------------------------------------
@@ -170,6 +181,60 @@ Resources:
       DockerTag: v1
 
   # ---------------------------------------------------------
+  # REPORT GENERATOR LAMBDA (Gera PDF, persiste no S3 e envia e-mail)
+  # ---------------------------------------------------------
+  FeedbackReportGeneratorFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Description: Gera relatório em PDF, salva no S3 e envia e-mail com link.
+      PackageType: Image
+      Events:
+        ScheduleEvent:
+          Type: Schedule
+          Properties:
+            Schedule: !Ref ReportSchedule
+            Name: FeedbackReportDaily
+            Enabled: true
+      Environment:
+        Variables:
+          QUARKUS_LOG_LEVEL: INFO
+          FEEDBACK_DYNAMODB_TABLE_NAME: !Ref DynamoDbTableName
+          PDF_BUCKET: !Ref ReportsBucketName
+          PDF_DIAS_URL_VALIDA: !Ref PdfUrlDays
+          EMAIL_ADMIN_ADDRESS: !Ref AdminEmail
+          EMAIL_SOURCE_ADDRESS: !Ref SourceEmail
+      Policies:
+        - Statement:
+            # DynamoDB: leitura na tabela de feedbacks
+            - Effect: Allow
+              Action:
+                - dynamodb:Query
+                - dynamodb:Scan
+                - dynamodb:GetItem
+              Resource: !Sub "arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${DynamoDbTableName}"
+            # S3: gravar e ler arquivos do bucket de relatórios
+            - Effect: Allow
+              Action:
+                - s3:PutObject
+                - s3:GetObject
+              Resource: !Sub "arn:aws:s3:::${ReportsBucketName}/*"
+            # SES: Enviar e-mail
+            - Effect: Allow
+              Action: ses:SendEmail
+              Resource: '*'
+            # Logs
+            - Effect: Allow
+              Action:
+                - logs:CreateLogGroup
+                - logs:CreateLogStream
+                - logs:PutLogEvents
+              Resource: '*'
+    Metadata:
+      Dockerfile: Dockerfile
+      DockerContext: ./feedback-report-generator
+      DockerTag: v1
+
+  # ---------------------------------------------------------
   # COGNITO (Autenticação)
   # ---------------------------------------------------------
   FeedbackUserPool:
@@ -197,6 +262,9 @@ Outputs:
   FeedbackIngestionFunctionArn:
     Description: ARN da função Lambda Producer
     Value: !GetAtt FeedbackIngestionFunction.Arn
+  FeedbackReportGeneratorFunctionArn:
+    Description: ARN da função Lambda Report Generator
+    Value: !GetAtt FeedbackReportGeneratorFunction.Arn
   FeedbackApiEndpoint:
     Description: Endpoint base da API de Ingestão (HttpApi)
     Value: !Sub "https://${FeedbackApi}.execute-api.${AWS::Region}.amazonaws.com"
